@@ -4,15 +4,14 @@ popstationr is ISO to EBOOT.bin converter to convert PSX ISO images to use with 
 ## About
 This version is a cleaned version from copstation without wall of text, a good readme (this one)
 and a work in progress help and usage parameter in the compiled popstationr
-          Coded and Maintained by Coldbird [vanburace@gmail.com]
 
-   Credits go to... [Dark_Alex] - for the Basic Idea and Conversion Method
-                    [Tinnus]    - for the CDDA Fix - AKA TOC Converter
-                    [Coldbird]  - for EVERYTHING else
-                    [Coldbird]  - for the updated copstation version <vanburace@gmail.com>
+## Credits
+* [Dark\_Alex] - for the Basic Idea and Conversion Method
+* [Tinnus]    - for the CDDA Fix - AKA TOC Converter
+* [Coldbird]  - for the updated copstation version <vanburace@gmail.com>
 
 ## Features
- * standard stuff like the one from dark_alex
+ * standard stuff like the one from dark\_alex
  * CDDA Fix from Tinnus
  * Bootscreen Exchange (the warning screen). Place a greyscale LOGO.PNG in the same folder as the ISO (do not use a coloured PNG)
  * No more BASE.PBP madness (everything needed is on the source-side
