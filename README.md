@@ -38,7 +38,18 @@ make
 
 FIXME add make install target
 
+## Usage
+```bash
+popstation $human_readable_name $GameID $compressionlevel $image.iso
+```
+### Example
+```bash
+popstation 'Tony Hawks Skateboarding' SLUS00860 9 THPS1_SLUS_008.60.iso
+```
+Instead of the GameID you also can use *AUTO* to let popstationr detect the GameID.
+
 ## Nice to know
+If you want to convert \*.bin/\*.cue files to ISO use **iat**
 When you wan't to include Icons, Backgrounds, Sounds, etc...
 Make sure that they are all in CAPS! 
 
