@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
+#include <stdlib.h>    /* for exit */
 #include <stdarg.h>
 #include <math.h>
 #ifndef WIN32
-#include <unistd.h>
+#include <unistd.h>    /* for getopt */
 #else
 #include <windows.h>
 #endif
@@ -24,18 +24,11 @@ int getsize(FILE *f)
 	fseek(f, 0, SEEK_SET);
 	return size;
 }
-
-void ErrorExit(char *fmt, ...)
+void usage(char *filename)
 {
-	va_list list;
-	char msg[256];
-
-	va_start(list, fmt);
-	vsprintf(msg, fmt, list);
-	va_end(list);
-
-	printf(msg);
-	exit(-1);
+    printf("Usage: %s [OPTION...] file.iso\n\n",filename);
+    printf(" -iso [EBOOT.bin]  converts a EBOOT.bin into iso\n");
+    printf(" --help            displays this message\n");
 }
 
 z_stream z;
@@ -178,6 +171,7 @@ typedef struct
 #pragma pack()
 #endif
 
+
 void convert(char *input, char *output, char *title, char *code, int complevel)
 {
 	FILE *in, *out, *t;
@@ -190,7 +184,8 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 	in = fopen (input, "rb");
 	if (!in)
 	{
-		ErrorExit("Unable to Open Input PSX ISO File [%s]\n", input);
+		printf("Unable to Open Input PSX ISO File [%s]\n", input);
+        exit(-1);
 	}
 
 	isosize = getsize(in);
@@ -206,7 +201,8 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 	out = fopen(output, "wb");
 	if (!out)
 	{
-		ErrorExit("Unable to Create Output PSX EBOOT File [%s]\n", output);
+		printf("Unable to Create Output PSX EBOOT File [%s]\n", output);
+        exit(-1);
 	}
 
 	printf("Writing Header...\n");
@@ -535,7 +531,8 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 			fclose(in);
 			fclose(out);
 
-			ErrorExit("Failed in allocating Memory for Indexes!\n");
+			printf("Failed in allocating Memory for Indexes!\n");
+            exit(-1);
 		}
 
 		i = 0;
@@ -559,7 +556,8 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 				fclose(out);
 				free(indexes);
 
-				ErrorExit("Error in Compression!\n");
+				printf("Error in Compression!\n");
+                exit(-1);
 			}
 
 			memset(&indexes[i], 0, sizeof(IsoIndex));
@@ -594,7 +592,7 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 			fclose(out);
 			free(indexes);
 
-			ErrorExit("Some Error happened...\n");
+			printf("Some Error happened...\n");
 		}
 
 		x = ftell(out);
@@ -616,7 +614,7 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 		end_offset -= header[9];
 	}
 
-	printf("Writing STARTDAT Header...\n");
+	printf("Writing STARTDAT Header...\n");
 	fwrite(startdatheader, 1, sizeof(startdatheader), out);
 
 	if (logo)
@@ -682,8 +680,10 @@ int FindPSISOFlag(char * eboot)
    FILE * fp = fopen(eboot,"rb");
 
    if(!fp)
-      ErrorExit("Failed to Open [%s] for a Flag-Scan.\n",eboot);
-
+   {
+      printf("Failed to Open [%s] for a Flag-Scan.\n",eboot);
+      exit(-1);
+   }
    int offset=-1;
    char buffer[12];
 
@@ -708,8 +708,10 @@ int GetISOSize(char * eboot, int offset)
    FILE * fp = fopen(eboot,"rb");
 
    if(!fp)
-      ErrorExit("Failed to Open [%s] for a ISO-Size Calculation.\n",eboot);
-
+   {
+      printf("Failed to Open [%s] for a ISO-Size Calculation.\n",eboot);
+      exit(-1);
+   }
    int size=0;
    int pointervalue[8];
 
@@ -749,8 +751,10 @@ int ExtractISO(char * eboot, char * output)
    offset=FindPSISOFlag(eboot);
 
    if(!offset)
-      ErrorExit("Failed to Locate PSISO Flag - Make sure your [%s] is a PSX-EBOOT!\n",eboot);
-
+   {
+      printf("Failed to Locate PSISO Flag - Make sure your [%s] is a PSX-EBOOT!\n",eboot);
+      exit(-1);
+   }
    int indexoffset=(offset+0x4000);
    int isooffset=(offset+0x100000);
 
@@ -822,8 +826,11 @@ int ExtractISO(char * eboot, char * output)
 char * GetGID(char * filename, char * output)
 {
    FILE * file = fopen(filename, "r");
-   if(!file) ErrorExit("Couldn't Open PSX Game [%s] for GameID Scan!\n",filename);
-
+   if(!file)
+   {
+       printf("Couldn't Open PSX Game [%s] for GameID Scan!\n",filename);
+       exit(-1);
+   }
    int i;
    int x;
 
@@ -863,38 +870,18 @@ char * GetGID(char * filename, char * output)
 int main(int argc, char *argv[])
 {
 	int i;
-
-   printf("\n");
-	printf(" .|'''',                        ||              ||                         \n");
-	printf(" ||                             ||              ||     ''                  \n");
-	printf(" ||      .|''|, '||''|, ('''' ''||''   '''|.  ''||''   ||  .|''|, `||''|,  \n");
-	printf(" ||      ||  ||  ||  ||  `'')   ||    .|''||    ||     ||  ||  ||  ||  ||  \n");
-	printf(" `|....' `|..|'  ||..|' `...'   `|..' `|..||.   `|..' .||. `|..|' .||  ||. \n");
-	printf("                 ||                                                        \n");
-	printf("                .||              Coldbird Popstation Mod V2.21             \n");
-	printf("\n");
-   printf("          Coded and Maintained by Coldbird [vanburace@gmail.com]\n");
-   printf("\n");
-	printf("Credits go to... [Dark_Alex] - for the Basic Idea and Conversion Method\n");
-	printf("                 [Tinnus]    - for the CDDA Fix - AKA TOC Converter\n");
-	printf("                 [Coldbird]  - for EVERYTHING else\n");
-   printf("\n");
-   printf("          Now 3.03 OE-C (and newer) only! If you want to use this\n");
-   printf("          with a lower Firmware Version, extract the DATA.PSP from\n");
-   printf("          a BASE.PBP of your Choice and place it in the same Place\n");
-   printf("          as your PSX Game / Images.\n");
-   printf("\n");
-   printf("          Thanks to Dark_Alex' 3.03 OE-C, no more KEYS.BIN is needed.\n");
-   printf("\n");
-
-	if ((argc != 5)&&(argc != 3))
+    if ((argc==2)&&(strcmp(argv[1],"--help") == 0))
+    {
+      usage(argv[0]);
+      exit(0);
+    }
+    if ((argc != 5)&&(argc != 3))
 	{
       help:
       fprintf(stderr,"Invalid Number of Arguments.\n");
-      printf("For Packing        : %s title gamecode compressionlevel inputfile.iso\n",argv[0]);
-		ErrorExit("For ISO-Extraction : %s -iso outputfile.iso\n", argv[0]);
+      usage(argv[0]);
+      exit(-1);
 	}
-
    if(argc==3)
    {
       if(strcmp(argv[1],"-iso")) goto help;
@@ -925,7 +912,8 @@ int main(int argc, char *argv[])
 
       	if (strlen(argv[2]) != 9)
       	{
-      		ErrorExit("Invalid game code.\n");
+      		printf("Invalid game code.\n");
+            exit(-1);
       	}
 
       	for (i = 0; i < N_GAME_CODES; i++)
@@ -936,31 +924,39 @@ int main(int argc, char *argv[])
 
       	if (i == N_GAME_CODES)
       	{
-      		ErrorExit("Invalid game code.\n");
+      		printf("Invalid game code.\n");
+            exit(-1);
       	}
 
       	for (i = 4; i < 9; i++)
       	{
       		if (argv[2][i] < '0' || argv[2][i] > '9')
       		{
-      			ErrorExit("Invalid game code.\n");
+      			printf("Invalid game code.\n");
+                exit(-1);
       		}
       	}
       }
       else
       {
-         if(!GetGID(argv[4],gameid)) ErrorExit("Unable to find GameID inside the ISO...\nThis could be the Case if you are using PSX Game Beta Versions or Homebrew PSX Games.\nPlease specify a ID yourself!\n");
+         if(!GetGID(argv[4],gameid))
+         { 
+             printf("Unable to find GameID inside the ISO\nThis could be the case if your are using PSX Game Beta versions or homebrew PSX games.\nPlease specify a ID yourself.\n");
+             exit(-1);
+         }
          else printf("Automatically Extracted GameID [%s]\n",gameid);
       }
 
    	if (strlen(argv[3]) != 1)
    	{
-   		ErrorExit("Invalid compression level.\n");
+   		printf("Invalid compression level.\n");
+        exit(-1);
    	}
 
    	if (argv[3][0] < '0' || argv[3][0] > '9')
    	{
-   		ErrorExit("Invalid compression level.\n");
+   		printf("Invalid compression level.\n");
+        exit(-1);
    	}
 
    	convert(argv[4], "EBOOT.PBP", argv[1], gameid, argv[3][0]-'0');

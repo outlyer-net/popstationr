@@ -1,4 +1,4 @@
-OUTPUT=popstation
+OUTPUT=popstationr
 OBJS=main.o toc.o iniparser.o
 CFLAGS=-Wall -Os -I.
 LDFLAGS=-L.
