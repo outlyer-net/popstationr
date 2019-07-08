@@ -3,6 +3,7 @@
 #include <stdlib.h>    /* for exit */
 #include <stdarg.h>
 #include <math.h>
+#include <ctype.h>     /* for isdigit */
 #ifndef WIN32
 #include <unistd.h>    /* for getopt */
 #else
@@ -177,9 +178,9 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 	FILE *in, *out, *t;
 	int i, offset, isosize, isorealsize, x;
 	int index_offset, p1_offset, p2_offset, end_offset;
-	IsoIndex *indexes;
+	IsoIndex *indexes = NULL;
 
-	void* tocptr;
+	void* tocptr = NULL;
 
 	in = fopen (input, "rb");
 	if (!in)
@@ -453,8 +454,13 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 	}
 	else if (toc == 2)
 	{
-		memcpy(data1+1024, tocptr, toc_size);
-		free(tocptr);
+		if (tocptr) {
+			memcpy(data1+1024, tocptr, toc_size);
+			free(tocptr);
+		} else {
+			printf("Parsing error\n");
+			exit(-1);
+		}
 	}
 
 	fwrite(data1, 1, sizeof(data1), out);
@@ -649,30 +655,16 @@ void convert(char *input, char *output, char *title, char *code, int complevel)
 		fwrite(&end_offset, 1, 4, out);
 
 		fseek(out, index_offset, SEEK_SET);
+		if (!indexes) {
+			printf("Parsing error\n");
+			exit(-1);
+		}
 		fwrite(indexes, 1, sizeof(IsoIndex) * (isosize/0x9300), out);
 	}
 
 	fclose(in);
 	fclose(out);
 }
-
-#define N_GAME_CODES	12
-
-char *gamecodes[N_GAME_CODES] =
-{
-	"SCUS",
-	"SLUS",
-	"SLES",
-	"SCES",
-	"SCED",
-	"SLPS",
-	"SLPM",
-	"SCPS",
-	"SLED",
-	"SLPS",
-	"SIPS",
-	"ESPM"
-};
 
 //COLDBIRDIE @ WORK
 int FindPSISOFlag(char * eboot)
@@ -687,10 +679,9 @@ int FindPSISOFlag(char * eboot)
    int offset=-1;
    char buffer[12];
 
-   while(strcmp(buffer,"PSISOIMG0000"))
+   while(strncmp(buffer,"PSISOIMG0000", 12))
    {
       if((fread(buffer, 1, 12, fp))<12) return 0;
-      buffer[12]='\0';
       fseek(fp,-11L,SEEK_CUR);
       offset++;
    }
@@ -823,48 +814,100 @@ int ExtractISO(char * eboot, char * output)
    }
 }
 
+#define N_GAME_CODES	14
+
+char *gamecodes[N_GAME_CODES] =
+{
+	"SCUS",
+	"SLUS",
+	"SLES",
+	"SCES",
+	"SCED",
+	"SLPS",
+	"SLPM",
+	"SCPS",
+	"SLED",
+	"SLPS",
+	"SIPS",
+	"ESPM",
+	"PBPX",
+	"LSP" // This must remain last
+};
+
+char * MatchingGameCode(char * buffer)
+{
+	// Consider LSP first, as a special case.
+	int i = N_GAME_CODES-1;
+	if (strncmp(buffer, gamecodes[i], 3) == 0)
+		return gamecodes[i];
+
+	// Proceed one character further into the buffer and consider all the
+	// 4-byte game codes.
+	buffer++;
+	for (i = 0; i < N_GAME_CODES - 1; i++)
+		if (strncmp(buffer, gamecodes[i], 4) == 0)
+			return gamecodes[i];
+
+	return NULL;
+}
+
 char * GetGID(char * filename, char * output)
 {
    FILE * file = fopen(filename, "r");
-   if(!file)
+   if (!file)
    {
        printf("Couldn't Open PSX Game [%s] for GameID Scan!\n",filename);
        exit(-1);
    }
-   int i;
-   int x;
 
-   char buffer[13];
+	// Establish a ring buffer
+	const int RING_BUFFER_SIZE = 14;
+	char rbuf[RING_BUFFER_SIZE];
+	int bo = 0; // Buffer offset
+	#define RBI(i) rbuf[(bo+i)%RING_BUFFER_SIZE]
+	// Prime the buffer
+	if ((fread(rbuf, 1, RING_BUFFER_SIZE, file)) != RING_BUFFER_SIZE) {
+		fclose(file);
+		return NULL;
+	}
+	while (1) {
+		// Look for end of potential gameid pattern
+		if (RBI(12)==';' && RBI(13)=='1')
+		{
+			// If found, copy buffer into a regular array for comparisons
+			char buf[RING_BUFFER_SIZE];
+			for (int c = 0; c < RING_BUFFER_SIZE; c++)
+				buf[c] = RBI(c);
+			// Then look for game codes
+			char * matching_code;
+			if ((matching_code = MatchingGameCode(buf))) {
+				// If found, copy matching game code to output
+				int code_len = strlen(matching_code);
+				strncpy(output, matching_code, code_len);
+				// Next, extract numeric portion.  Skip non-digits; stop if
+				// gameid reaches 9 characters in length.
+				int i, j;
+				for (i = code_len, j = code_len; i < 9 && j != ';'; j++)
+					if (isdigit(buf[j]))
+						output[i++] = buf[j];
+				// If we found enough digits, return the complete gameid.
+				if (i == 9) {
+					output[i] = '\0';
+					fclose(file);
+					return output;
+				}
+			}
+		}
+		// Read another character and write it into the ring buffer.
+		int c = fgetc(file);
+		if (c == EOF)
+			break;
+		rbuf[bo++] = c;
+		bo %= RING_BUFFER_SIZE;
+	}
 
-	while ((x = fread(buffer, 1, 13, file)) == 13)
-	{
-   	for (i = 0; i < N_GAME_CODES; i++)
-   	{
-   		if ((strncmp(buffer, gamecodes[i], 4) == 0)&&
-             (buffer[4]=='_')&&(buffer[8]=='.')&&(buffer[11]==';')&&(buffer[12]=='1'))
-   			break;
-   	}
-      if(i!=N_GAME_CODES)
-      {
-         output[0]=gamecodes[i][0];
-         output[1]=gamecodes[i][1];
-         output[2]=gamecodes[i][2];
-         output[3]=gamecodes[i][3];
-         output[4]=buffer[5];
-         output[5]=buffer[6];
-         output[6]=buffer[7];
-         output[7]=buffer[9];
-         output[8]=buffer[10];
-         output[9]='\0';
-         break;
-      }
-      fseek(file,-12L,SEEK_CUR);
-   }
-
-   fclose(file);
-
-   if(x!=13) return (char*)(0);
-   else return output;
+	fclose(file);
+	return NULL;
 }
 
 int main(int argc, char *argv[])
@@ -902,7 +945,7 @@ int main(int argc, char *argv[])
       }
    }
 
-   char gameid[9];
+   char gameid[10];
 
    if(argc==5)
    {
@@ -918,7 +961,7 @@ int main(int argc, char *argv[])
 
       	for (i = 0; i < N_GAME_CODES; i++)
       	{
-      		if (strncmp(argv[2], gamecodes[i], 4) == 0)
+      		if (strncmp(argv[2], gamecodes[i], strlen(gamecodes[i])) == 0)
       			break;
       	}
 
