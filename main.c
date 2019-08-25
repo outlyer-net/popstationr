@@ -34,6 +34,8 @@ void usage(char *filename)
 		"\n"
 		"Convert ISO to PBP:\n"
 		"  %1$s <human readable name> <game id> <compression_level> <input.iso>\n"
+		" or\n"
+		"  %1$s <human readable name> AUTO <compression_level> <input.iso>\n"
 		"\n"
 		"Convert \"EBOOT.PBP\" to ISO:\n"
 		"  %1$s -iso <output.iso>\n"
