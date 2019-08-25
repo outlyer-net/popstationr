@@ -27,9 +27,18 @@ int getsize(FILE *f)
 }
 void usage(char *filename)
 {
-    printf("Usage: %s [OPTION...] file.iso\n\n",filename);
-    printf(" -iso [EBOOT.bin]  converts a EBOOT.bin into iso\n");
-    printf(" --help            displays this message\n");
+	printf(
+		"Usage: %1$s [OPTION...] file.iso\n"
+		"\n"
+        " --help            displays this message\n"
+		"\n"
+		"Convert ISO to PBP:\n"
+		"  %1$s <human readable name> <game id> <compression_level> <input.iso>\n"
+		"\n"
+		"Convert \"EBOOT.PBP\" to ISO:\n"
+		"  %1$s -iso <output.iso>\n"
+		,filename
+	);
 }
 
 z_stream z;
